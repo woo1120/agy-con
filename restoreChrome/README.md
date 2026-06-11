@@ -37,15 +37,24 @@
 
 ### 3. 작업 스케줄러 등록 (자동화)
 
-PowerShell 또는 CMD에서 아래 명령어 실행 (경로를 본인 환경에 맞게 수정):
+> **⚠️ 중요**: 복원은 고정 시간(예: 8:15)이 아닌 **로그온 후 지연 실행**으로 등록해야 합니다.
+> 보안 프로그램이 로그인 시점에 실행되므로, 고정 시간 복원은 보안 프로그램에 의해 다시 삭제될 수 있습니다.
 
-```cmd
-:: 평일 오후 5:30 백업
-schtasks /Create /TN "ChromeProfileBackup" /TR "cmd /c \"C:\Users\{사용자명}\Downloads\restoreChrome\chrome_backup_silent.bat\"" /SC WEEKLY /D MON,TUE,WED,THU,FRI /ST 17:30 /F
+PowerShell에서 아래 명령어 실행 (경로를 본인 환경에 맞게 수정):
 
-:: 평일 오전 8:15 복원
-schtasks /Create /TN "ChromeProfileRestore" /TR "cmd /c \"C:\Users\{사용자명}\Downloads\restoreChrome\chrome_restore_silent.bat\"" /SC WEEKLY /D MON,TUE,WED,THU,FRI /ST 08:15 /F
+```powershell
+# 평일 오후 5:30 백업
+schtasks /Create /TN "ChromeProfileBackup" /TR 'cmd /c "C:\Users\{사용자명}\Downloads\restoreChrome\chrome_backup_silent.bat"' /SC WEEKLY /D MON,TUE,WED,THU,FRI /ST 17:30 /F
+
+# 로그온 후 10분 지연 복원 (보안 프로그램 완료 후 실행)
+$action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument '/c "C:\Users\{사용자명}\Downloads\restoreChrome\chrome_restore_silent.bat"'
+$trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
+$trigger.Delay = "PT10M"
+$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+Register-ScheduledTask -TaskName "ChromeProfileRestore" -Action $action -Trigger $trigger -Settings $settings -Force
 ```
+
+> 10분이 부족하면 `PT10M`을 `PT15M`(15분) 또는 `PT20M`(20분)으로 변경하세요.
 
 ## 백업 위치
 
